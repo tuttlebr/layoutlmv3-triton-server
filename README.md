@@ -55,3 +55,44 @@ This model uses NVIDIA's enterprise containers available on NGC with a valid API
    ```sh
    docker compose up layoutlmv3-triton-client-query
    ```
+
+## Example Output
+Triton will return 'true_predictions' and 'true_boxes' as arrays. They can be overlayed as boxes on an image as so:
+
+```python
+# simple mapper, also available in pytesseract.py
+def iob_to_label(label):
+    label = label[2:]
+    if not label:
+        return "other"
+    return label
+
+# Original user image
+draw = ImageDraw.Draw(image)
+font = ImageFont.load_default()
+
+# Label categories for the model
+label2color = {
+    "question": "blue",
+    "answer": "green",
+    "header": "orange",
+    "other": "violet",
+}
+
+for prediction, box in zip(true_predictions, true_boxes):
+    predicted_label = iob_to_label(prediction).lower()
+    draw.rectangle(box, outline=label2color[predicted_label])
+    draw.text(
+        (box[0] + 10, box[1] - 10),
+        text=predicted_label,
+        fill=label2color[predicted_label],
+        font=font,
+    )
+
+# Output
+image
+```
+
+<p align="left">
+    <img style="center;" src="workspace/ocr-sample.png" alt="sample-ocr" width="800"/>
+</p>
