@@ -1,0 +1,175 @@
+services:
+  layoutlmv3-pytorch:
+    build:
+      args:
+        - FROM_BASE_IMAGE=nvcr.io/nvaie/pytorch-2-2:${NGC_BRANCH}-nvaie-2.2-py3
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - TRANSFORMERS_CACHE=${TRANSFORMERS_CACHE}
+      - TOKENIZERS_PARALLELISM=${TOKENIZERS_PARALLELISM}
+      - TESSERACT_OPENCL_DEVICE=${TESSERACT_OPENCL_DEVICE}
+      - TESSDATA_PREFIX=${TESSDATA_PREFIX}
+    image: layoutlmv3:pytorch
+    shm_size: 8gb
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    runtime: "nvidia"
+    ports:
+      - 8888:8888
+    entrypoint:
+      [
+        "jupyter",
+        "lab",
+        "--ip=0.0.0.0",
+        "--no-browser",
+        "--allow-root",
+        "--port=8888",
+        "--NotebookApp.token=''",
+        "--NotebookApp.password=''",
+        "--NotebookApp.notebook_dir=/workspace",
+      ]
+    volumes:
+      - type: bind
+        source: workspace/LayoutLMv3-notebook.ipynb
+        target: /workspace/LayoutLMv3-notebook.ipynb
+      - type: bind
+        source: workspace/pytesseract.py
+        target: /workspace/pytesseract.py
+      - type: bind
+        source: workspace/sample.png
+        target: /workspace/sample.png
+      - type: bind
+        source: data
+        target: ${TRANSFORMERS_CACHE}
+
+  layoutlmv3-model-analyzer:
+    build:
+      args:
+        - BASE_IMAGE=nvcr.io/nvaie/tritonserver-2-2:${NGC_BRANCH}-nvaie-2.2-py3
+        - TRITONSDK_BASE_IMAGE=nvcr.io/nvaie/tritonserver-2-2:${NGC_BRANCH}-nvaie-2.2-py3-sdk
+      context: https://github.com/triton-inference-server/model_analyzer.git#r${NGC_BRANCH}
+      dockerfile: Dockerfile
+    image: model-analyzer
+    shm_size: 18gb
+    ulimits:
+      memlock: -1
+      stack: 1000000000
+    runtime: "nvidia"
+    entrypoint: ["bash", "/tmp/model-analyzer.sh"]
+    networks:
+      - triton-server
+    volumes:
+      - type: bind
+        source: data/triton-models
+        target: /models
+      - type: bind
+        source: data/model_analyzer_configs
+        target: /config
+      - type: bind
+        source: data/model_analyzer_outputs
+        target: /output
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+      - type: bind
+        source: model-analyzer.sh
+        target: /tmp/model-analyzer.sh
+
+  layoutlmv3-triton-server:
+    build:
+      args:
+        - FROM_BASE_IMAGE=nvcr.io/nvaie/tritonserver-2-2:${NGC_BRANCH}-nvaie-2.2-py3
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - TRANSFORMERS_CACHE=${TRANSFORMERS_CACHE}
+      - TOKENIZERS_PARALLELISM=${TOKENIZERS_PARALLELISM}
+      - TESSDATA_PREFIX=${TESSDATA_PREFIX}
+    image: layoutlmv3:triton
+    shm_size: 16gb
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    runtime: "nvidia"
+    ports:
+      - 8000:8000
+      - 8001:8001
+      - 8002:8002
+    entrypoint:
+      [
+        "tritonserver",
+        "--model-repository=/models",
+        "--allow-metrics=true",
+        "--allow-gpu-metrics=true",
+      ]
+    hostname: triton-server
+    networks:
+      triton-server:
+        ipv4_address: ${TRITON_ENDPOINT}
+    volumes:
+      - type: bind
+        source: data/triton-models
+        target: /models
+
+  layoutlmv3-triton-client:
+    image: nvcr.io/nvaie/tritonserver-2-2:${NGC_BRANCH}-nvaie-2.2-py3-sdk
+    shm_size: 18gb
+    ulimits:
+      memlock: -1
+      stack: 1000000000
+    runtime: "nvidia"
+    entrypoint:
+      [
+        "python3",
+        "/workspace/client.py",
+        "--model_name=layoutlmv3_0_ensemble",
+        "--image=/workspace/sample.png",
+        "--url=${TRITON_ENDPOINT}:8001",
+      ]
+    networks:
+      - triton-server
+    hostname: triton-client
+    volumes:
+      - type: bind
+        source: workspace/client.py
+        target: /workspace/client.py
+      - type: bind
+        source: workspace/sample.png
+        target: /workspace/sample.png
+
+  layoutlmv3-triton-client-query:
+    environment: 
+      - TRITON_ENDPOINT=${TRITON_ENDPOINT}
+      - MODEL=layoutlmv3_0_ensemble
+      - MAX_THREADS=16
+      - BATCH_SIZE=4
+      - STEP_CONCURRENCY=4
+      - MIN_CONCURRENCY=4
+      - MAX_CONCURRENCY=4
+    image: nvcr.io/nvaie/tritonserver-2-2:${NGC_BRANCH}-nvaie-2.2-py3-sdk
+    shm_size: 8gb
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    entrypoint: ["/workspace/perf-query.sh"]
+    networks:
+      - triton-server
+    volumes:
+      - type: bind
+        source: workspace/perf-query.sh
+        target: /workspace/perf-query.sh
+      - type: bind
+        source: workspace/sample.png
+        target: /workspace/sample.png
+      - type: bind
+        source: data/triton-models/layoutlmv3_1_preprocess/layoutlmv3_inputs.json
+        target: /workspace/data.json
+
+networks:
+  triton-server:
+      driver: bridge
+      ipam:
+        config:
+        - subnet: 172.25.0.0/24

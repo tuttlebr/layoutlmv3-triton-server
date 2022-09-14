@@ -1,0 +1,54 @@
+name: "layoutlmv3_3_postprocess"
+
+backend: "python"
+default_model_filename: "model.py"
+
+max_batch_size: 16
+dynamic_batching {
+    preferred_batch_size: [ 1, 4, 8, 16 ]
+    max_queue_delay_microseconds: 50000
+  }
+
+instance_group [
+    {
+      count: 10
+      kind: KIND_GPU
+      gpus: [ 0, 1 ]
+    }
+  ]
+
+input [
+    {
+        name: "logits"
+        data_type: TYPE_FP32
+        dims: [ -1, 7 ]
+    },
+    {
+        name: "bbox", 
+        data_type: TYPE_INT64, 
+        dims: [ -1, 4 ]
+    },
+    {
+        name: "offset_mapping", 
+        data_type: TYPE_INT64, 
+        dims: [ -1, 2 ]
+    },
+    {
+        name: "raw_image_shape", 
+        data_type: TYPE_INT64, 
+        dims: [ 2 ]
+    }
+]
+
+output [
+    {
+        name: "true_predictions"
+        data_type: TYPE_STRING
+        dims: [ -1 ]
+    },
+    {
+        name: "true_boxes"
+        data_type: TYPE_FP32
+        dims: [ -1, 4 ]
+    }
+]

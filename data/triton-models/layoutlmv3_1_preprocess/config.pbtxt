@@ -1,0 +1,79 @@
+name: "layoutlmv3_1_preprocess"
+
+backend: "python"
+default_model_filename: "model.py"
+
+max_batch_size: 16
+dynamic_batching {
+    preferred_batch_size: [ 1, 4 ]
+    max_queue_delay_microseconds: 50000
+  }
+
+instance_group [
+    {
+      count: 10
+      kind: KIND_GPU
+      gpus: [ 0, 1 ]
+    }
+  ]
+
+input [
+    {
+        name: "raw_image_array"
+        data_type: TYPE_UINT8
+        dims: [ -1 ]
+    }
+]
+ 
+output [
+    {
+        name: "input_ids", 
+        data_type: TYPE_INT64, 
+        dims: [ -1 ]
+    },
+    {
+        name: "attention_mask", 
+        data_type: TYPE_INT64, 
+        dims: [ -1 ]
+    },
+    {
+        name: "offset_mapping", 
+        data_type: TYPE_INT64, 
+        dims: [ -1, 2 ]
+    },
+    {
+        name: "bbox", 
+        data_type: TYPE_INT64, 
+        dims: [ -1, 4 ]
+    },
+    {
+      name: "pixel_values", 
+      data_type: TYPE_FP32, 
+      dims: [ 3, 224, 224 ]
+    },
+    {
+        name: "raw_image_shape", 
+        data_type: TYPE_INT64, 
+        dims: [ 2 ]
+    }
+]
+
+parameters {
+    key: "model_description"
+    value: {
+        string_value: "Tesseract is an open source text recognition (OCR) Engine developed at HP between 1984 and 1994. Tesseract is used to run the initial OCR required for input into LayoutLMv3 and has been compiled to run on OpenCL devices for faster inference on NVIDIA Triton using the LSTM model."
+    }
+}
+parameters {
+
+    key: "citation"
+    value: {
+        string_value: "Rice, S., Jenkins, F., & Nartker, T. (n.d.). The Fourth Annual Test of OCR Accuracy. Retrieved September 12, 2022, from https://tesseract-ocr.github.io/docs/AT-1995.pdf"
+    }
+}
+parameters {        
+    key: "license"
+    value: {
+        string_value: "Apache 2.0 license: https://www.apache.org/licenses/LICENSE-2.0"
+    }
+}

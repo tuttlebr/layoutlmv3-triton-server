@@ -1,0 +1,22 @@
+services:
+  tesseract-opencl:
+    build:
+      args:
+        - FROM_BASE_IMAGE=nvcr.io/nvidia/cuda:11.7.1-cudnn8-devel-ubuntu20.04
+      context: .
+      dockerfile: Dockerfile.tesseract
+    image: layoutlmv3:tesseract
+    shm_size: 8gb
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    runtime: "nvidia"
+    environment:
+      - TESSERACT_OPENCL_DEVICE=${TESSERACT_OPENCL_DEVICE}
+      - TESSDATA_PREFIX=${TESSDATA_PREFIX}
+    volumes:
+      - type: bind
+        source: workspace/sample.png
+        target: /workspace/sample.png
+    entrypoint:
+      ["/workspace/tesseract/tesseract", "/workspace/sample.png", "outputbase"]

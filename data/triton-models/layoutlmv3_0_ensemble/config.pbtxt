@@ -1,0 +1,113 @@
+name: "layoutlmv3_0_ensemble"
+platform: "ensemble"
+max_batch_size: 16
+
+input [
+  {
+    name: "raw_image_array"
+    data_type: TYPE_UINT8
+    dims: [ -1 ]
+  }
+]
+output [
+  {
+    name: "true_predictions"
+    data_type: TYPE_STRING
+    dims: [ -1 ]
+  },
+  {
+    name: "true_boxes"
+    data_type: TYPE_FP32
+    dims: [ -1, 4 ]
+  }
+]
+ensemble_scheduling {
+  step [
+    {
+      model_name: "layoutlmv3_1_preprocess"
+      model_version: -1
+      input_map {
+        key: "raw_image_array"
+        value: "raw_image_array"
+      }
+
+      output_map {
+        key: "input_ids"
+        value: "detection_preprocessing_output_input_ids"
+      }
+      output_map {
+        key: "attention_mask"
+        value: "detection_preprocessing_output_attention_mask"
+      }
+      output_map {
+        key: "offset_mapping"
+        value: "detection_preprocessing_output_offset_mapping"
+      }
+      output_map {
+        key: "bbox"
+        value: "detection_preprocessing_output_bbox"
+      }
+      output_map {
+        key: "pixel_values"
+        value: "detection_preprocessing_output_pixel_values"
+      }
+      output_map {
+        key: "raw_image_shape"
+        value: "detection_preprocessing_output_raw_image_shape"
+      }
+    },
+    {
+      model_name: "layoutlmv3_2_inference"
+      model_version: -1
+      input_map {
+        key: "input_ids"
+        value: "detection_preprocessing_output_input_ids"
+      }
+      input_map {
+        key: "attention_mask"
+        value: "detection_preprocessing_output_attention_mask"
+      }
+      input_map {
+        key: "bbox"
+        value: "detection_preprocessing_output_bbox"
+      }
+      input_map {
+        key: "pixel_values"
+        value: "detection_preprocessing_output_pixel_values"
+      }
+
+      output_map {
+        key: "logits"
+        value: "prediction_logits"
+      }
+    },
+    {
+        model_name: "layoutlmv3_3_postprocess"
+        model_version: -1
+        input_map {
+          key: "logits"
+          value: "prediction_logits"
+        }
+        input_map {
+          key: "bbox"
+          value: "detection_preprocessing_output_bbox"
+        }
+        input_map {
+            key: "offset_mapping"
+            value: "detection_preprocessing_output_offset_mapping"
+          }
+        input_map {
+          key: "raw_image_shape"
+          value: "detection_preprocessing_output_raw_image_shape"
+        }
+        output_map {
+          key: "true_predictions"
+          value: "true_predictions"
+        }
+        output_map {
+          key: "true_boxes"
+          value: "true_boxes"
+        }
+    }
+  ]
+}

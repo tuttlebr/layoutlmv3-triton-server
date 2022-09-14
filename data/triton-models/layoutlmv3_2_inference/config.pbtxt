@@ -1,0 +1,69 @@
+name: "layoutlmv3_2_inference"
+platform: "onnxruntime_onnx"
+backend: "onnxruntime"
+default_model_filename: "model.onnx"
+
+max_batch_size: 16
+dynamic_batching {
+    preferred_batch_size: [ 1, 4, 8, 16 ]
+    max_queue_delay_microseconds: 50000
+  }
+
+instance_group [
+    {
+      count: 10
+      kind: KIND_GPU
+      gpus: [ 0, 1 ]
+    }
+  ]
+
+input [
+    {
+        name: "input_ids", 
+        data_type: TYPE_INT64, 
+        dims: [ -1 ]       
+    },
+    {
+        name: "attention_mask", 
+        data_type: TYPE_INT64, 
+        dims: [ -1 ]
+    },
+    {
+        name: "bbox", 
+        data_type: TYPE_INT64, 
+        dims: [ -1, 4 ]
+    },
+    {
+        name: "pixel_values", 
+        data_type: TYPE_FP32, 
+        dims: [ -1, 224, 224 ]
+    }
+]
+
+output [
+    {
+        name: "logits"
+        data_type: TYPE_FP32
+        dims: [ -1, 7 ]
+    }
+]
+
+parameters {
+        key: "model_description"
+        value: {
+            string_value: "LayoutLMv3 is a pre-trained multimodal Transformer for Document AI with unified text and image masking. The simple unified architecture and training objectives make LayoutLMv3 a general-purpose pre-trained model. For example, LayoutLMv3 can be fine-tuned for both text-centric tasks, including form understanding, receipt understanding, and document visual question answering, and image-centric tasks such as document image classification and document layout analysis. https://huggingface.co/nielsr/layoutlmv3-finetuned-funsd"
+        }
+    }
+parameters {
+
+        key: "citation"
+        value: {
+            string_value: "LayoutLMv3: Pre-training for Document AI with Unified Text and Image Masking Yupan Huang, Tengchao Lv, Lei Cui, Yutong Lu, Furu Wei, Preprint 2022."
+        }
+    }
+parameters {        
+        key: "license"
+        value: {
+            string_value: "The content of this project itself is licensed under the Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0) Portions of the source code are based on the transformers project. Microsoft Open Source Code of Conduct"
+        }
+}

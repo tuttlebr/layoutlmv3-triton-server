@@ -1,0 +1,28 @@
+model_repository: /models
+checkpoint_directory: /output/checkpoints/
+output_model_repository_path: /output/layoutlmv3
+profile_models:
+  layoutlmv3_2_inference:
+    model_config_parameters:
+      max_batch_size: [1, 4, 8, 16]
+      dynamic_batching:
+        max_queue_delay_microseconds: [25000, 50000, 100000]
+      instance_group:
+        - kind: KIND_GPU
+          count: [1, 2, 4]
+    perf_analyzer_flags:
+      input-data: "random"
+      shape:
+        - input_ids:458
+        - attention_mask:458
+        - bbox:458,4
+        - pixel_values:3,224,224
+
+report_model_configs:
+  layoutlmv3_2_inference:
+    plots:
+      throughput_v_latency:
+        title: layoutlmv3_throughput_v_latency
+        x_axis: layoutlmv3_perf_latency_p99
+        y_axis: layoutlmv3_perf_throughput
+        monotonic: True

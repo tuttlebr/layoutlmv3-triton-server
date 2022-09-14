@@ -1,0 +1,44 @@
+# syntax=docker/dockerfile:1
+
+ARG FROM_BASE_IMAGE
+FROM ${FROM_BASE_IMAGE}
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y \
+    asciidoc \
+    autoconf \
+    automake \
+    clinfo \
+    g++ \
+    git \
+    libleptonica-dev \
+    libpng-dev \
+    libjpeg8-dev \
+    libtiff5-dev \
+    libtool \
+    libicu-dev \
+    libpango1.0-dev \
+    libcairo2-dev \
+    nvidia-cuda-toolkit \
+    xsltproc \
+    pkg-config \
+    zlib1g-dev
+
+WORKDIR /workspace
+
+RUN git clone --depth 1 https://github.com/tesseract-ocr/tesseract.git \
+    && cd tesseract \
+    && bash autogen.sh \
+    && autoreconf -i \
+    && ./configure --enable-opencl \
+    && make \
+    && make install \
+    && ldconfig
+
+WORKDIR /workspace
+
+RUN git clone --depth 1 https://github.com/tesseract-ocr/tessdata_fast.git tessdata\
+    && cd tessdata \
+    && git submodule update --init
